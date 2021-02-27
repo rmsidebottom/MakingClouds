@@ -53,7 +53,7 @@
         region: us-east-1
         image: ami-03d315ad33b9d49c4
         wait: yes
-        group: "{{ customsg.group_id }}"
+        group_id: "{{ customsg.group_id }}"
         vpc_subnet_id: "{{ subnet }}"
         assign_public_ip: yes
         instance_tags:
