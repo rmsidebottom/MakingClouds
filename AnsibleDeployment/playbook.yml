@@ -1,0 +1,66 @@
+- hosts: localhost
+  gather_facts: False
+  vars_files:
+    - variables.yml
+  tasks:
+    # ansible-galaxy collection install amazon.aws
+    - name: Provision a security group
+      amazon.aws.ec2_group:
+        name: CustomSecurityGroup
+        description: SG to allow HTTP and SSH traffic
+        region: us-east-1
+        vpc_id: "{{ vpc }}"
+        # state: absent
+        rules:
+          - proto: tcp
+            ports:
+              - 80
+            cidr_ip: "{{ ip }}"
+            rule_desc: Allow HTTP traffic from owner IP
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: "{{ ip }}"
+            rule_desc: Allow SSH traffic from owner IP
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: 127.0.0.1/32
+            rule_desc: Allow SSH traffic from deployment machine
+        rules_egress:
+          - proto: tcp
+            cidr_ip: 0.0.0.0/0
+            ports:
+              - 80
+            rule_desc: Allow HTTP to anywhere
+          - proto: tcp
+            cidr_ip: 0.0.0.0/0
+            ports:
+              - 443
+              - 8080
+            rule_desc: Allow HTTPS to anywhere
+        tags:
+          EnvName: Test Environment
+      register: customsg
+
+    - name: Print SG info
+      debug:
+        msg: "{{ customsg.group_id }}"
+
+    - name: Provision ec2 instance
+      amazon.aws.ec2:
+        instance_type: t2.micro
+        region: us-east-1
+        image: ami-03d315ad33b9d49c4
+        wait: yes
+        group: "{{ customsg.group_id }}"
+        vpc_subnet_id: "{{ subnet }}"
+        assign_public_ip: yes
+        instance_tags:
+          EnvName: Test Environment
+          Name: customec2
+      register: customec2
+
+    - name: Print EC2 information
+      debug:
+        msg: "{{ customec2 }}"
