@@ -48,6 +48,20 @@
           EnvName: Test Environment
       register: customsg
 
+    # generate private key for SSH if needed
+    - name: Create an EC2 key
+      ec2_key:
+        name: "sg-ec2-key"
+        region: "{{ region }}"
+      register: ec2_key
+
+    - name: Save private key
+      copy: 
+        content: "{{ ec2_key.key.private_key }}" 
+        dest: "../aws-private.pem" 
+        mode: 0600
+      when: ec2_key.changed
+
     # Create and provision EC2 instance
     # A script is provided to set up the simple web server
     - name: Provision ec2 instance
@@ -65,6 +79,29 @@
           Name: customec2
         user_data: "{{ lookup('file', 'user_data.sh') }}"
       register: customec2
+    
+    # Add to host group
+    - name: Add the newly created EC2 instance(s) to host group
+      lineinfile: dest={{ hostpath }}
+                  regexp={{ item.public_ip }} 
+                  insertafter="[webserver]" 
+                  line="{{ item.public_ip }} {{hoststring}}"
+                  state=present
+      with_items: "{{customec2.instances}}"
+
+    - wait_for: path={{ hostpath }} search_regex={{hoststring}}
+
+    # Set up SSH to verify services as needed
+    - name: Wait for SSH to come up
+      local_action: wait_for 
+                    host={{ item.public_ip }} 
+                    port=22 
+                    state=started
+      with_items: "{{customec2.instances}}"
+
+    - name: Add IP to ec2_hosts group
+      add_host: hostname={{ item.public_ip }} groups=ec2_hosts
+      with_items: "{{customec2.instances}}"
 
     # PRINT SECTION
     # print SG Group ID

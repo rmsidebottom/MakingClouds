@@ -1,3 +1,6 @@
 *.csv
 variables.yml
 *creds*
+hosts
+*.pem
+*key*
