@@ -1,0 +1,86 @@
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  remote_user: ubuntu
+  vars:
+    ansible_python_interpreter: /usr/local/bin/python3
+  vars_files:
+    - variables.yml
+    - creds.yml
+  tasks:
+    # create and provision security group
+    - name: Provision a security group
+      amazon.aws.ec2_group:
+        name: CustomSecurityGroup
+        description: SG to allow HTTP and SSH traffic
+        region: us-east-1
+        vpc_id: "{{ vpc }}"
+        # state: absent
+        rules:
+          - proto: tcp
+            ports:
+              - 80
+            cidr_ip: "{{ ip }}"
+            rule_desc: Allow HTTP traffic from owner IP
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ ip }}"
+            rule_desc: Allow SSH traffic from owner IP
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 127.0.0.1/32
+            rule_desc: Allow SSH traffic from deployment machine
+        rules_egress:
+          - proto: tcp
+            cidr_ip: 0.0.0.0/0
+            ports:
+              - 80
+            rule_desc: Allow HTTP to anywhere
+          - proto: tcp
+            cidr_ip: 0.0.0.0/0
+            ports:
+              - 443
+              - 8080
+            rule_desc: Allow HTTPS to anywhere
+        tags:
+          EnvName: Test Environment
+      register: customsg
+
+    # Create and provision EC2 instance
+    # A script is provided to set up the simple web server
+    - name: Provision ec2 instance
+      amazon.aws.ec2:
+        key_name: "sg-ec2-key"
+        instance_type: t2.micro
+        region: "{{ region }}"
+        image: ami-03d315ad33b9d49c4
+        wait: yes
+        group_id: "{{ customsg.group_id }}"
+        vpc_subnet_id: "{{ subnet }}"
+        assign_public_ip: yes
+        instance_tags:
+          EnvName: Test Environment
+          Name: customec2
+        user_data: "{{ lookup('file', 'user_data.sh') }}"
+      register: customec2
+
+    # PRINT SECTION
+    # print SG Group ID
+    - name: Print SG info
+      debug:
+        msg: "{{ customsg.group_id }}"
+
+    # Print values for easy access to EC2
+    - name: Print EC2 ID
+      debug:
+        msg: "{{ customec2.instance_ids[0] }}"
+            
+    - name: Print EC2 IP
+      debug:
+        msg: "{{ customec2['instances'][0]['public_ip'] }}"
+
+    - name: Print EC2 dns
+      debug:
+        msg: "{{ customec2['instances'][0]['dns_name']}}"
