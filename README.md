@@ -114,3 +114,5 @@ Future improvements and goals for the ansible portion are to increase security o
 For security of ansible, the goal would be to secure secrets using ansible vault. This would be useful for securing the AWS credentials.
 
 For webserver security, the move would be to ideally move away from PHP or at least harden the image itself.
+
+Lastly, fix the problems encountered when running in a Python virtual environment so it is portable.
