@@ -30,7 +30,7 @@
           - proto: tcp
             from_port: 22
             to_port: 22
-            cidr_ip: 127.0.0.1/32
+            cidr_ip: 15.188.168.209/32
             rule_desc: Allow SSH traffic from deployment machine
         rules_egress:
           - proto: tcp
